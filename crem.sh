@@ -3,9 +3,18 @@
 export XAUTHORITY=/home/username/.Xauthority
 export DISPLAY=:0.0
 
-NO_ARGS=0
-
+# woring arguments status variable
 E_WRONG_ARGS=95
+
+# constants which represent valid number of script arguments
+HELP_ARG=1
+RESOLUTION_ARGS=6
+
+# regex to validate resolution params
+RESOLUTION_REG="^[0-9]{3,4}$"
+
+# regex to validate output param
+OUTPUT_REG="^[a-zA-Z0-9]{3,5}$"
 
 # POSIX variable
 # Reset getops in case it has been previously used
@@ -13,48 +22,61 @@ OPTIND=1
 
 function show_usage ()
 {
-    echo -e "usage: $0 [-h] -x screen_width -y screen_height -c output\n"
+    echo -e "\nusage: $0 [-h] -x screen_width -y screen_height -c output\n"
     echo -e "This script changes the resolution of external monitor.\n"
 
     echo "   -c   Output port name"
     echo "   -h   Show this message"
     echo "   -x   Screen width"
     echo "   -y   Screen heigt"
-    echo "   -v   Verbose"
 
     echo -e "\nExample:"
     echo "   $0 -x 1366 -y 768 -c VGA1"
     exit 1
 }
 
+function check_input ()
+{
+    if [[ ! $1 =~ $2 ]]; then
+        echo -e "\nOops.. the argument '$1' is not valid. See example."
+        show_usage
+    fi
+}
+
+# check if there has been supplied correct number of arguments
+if [ "$#" -ne "$HELP_ARG" -a "$#" -ne "$RESOLUTION_ARGS" ]; then
+    echo -e "\nOops.. there is not enough arguments to run script. See example."
+    show_usage
+fi
 
 # parse command-line arguments
-while getopts "h?x:y:c:" opt; do
+while getopts "h :x: :y: :c:" opt
+do
     case $opt in
-        h|\?)
+        h)
             show_usage
             exit 0
             ;;
         x)
             width=$OPTARG
+            check_input $width $RESOLUTION_REG
             ;;
         y)
             height=$OPTARG
+            check_input $height $RESOLUTION_REG
             ;;
         c)
-            connection_type=$OPTARG
+            output=$OPTARG
+            check_input $output $OUTPUT_REG
             ;;
         :)
             echo "Option -$OPTARG requires an argument." >&2
-            exit $E_WRONG_ARGS=95
+            exit $E_WRONG_ARGS
             ;;
+        \?)
+            exit $E_WRONG_ARGS
     esac
 done
-
-# check if there has been supplied enough arguments
-if [ "$#" -eq "$NO_ARGS" ]; then
-    show_usage
-fi
 
 shift $(($OPTIND - 1))
 
@@ -72,6 +94,6 @@ mode_params=${cvt_output##*'"'}
 
 # call xrandr to add and apply the new resolution
 xrandr --newmode $mode_name$mode_params
-xrandr --addmode $connection_type $mode_name
-xrandr --output $connection_type --mode $mode_name
+xrandr --addmode $output $mode_name
+xrandr --output $output --mode $mode_name
 exit 0
